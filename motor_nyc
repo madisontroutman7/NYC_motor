@@ -1,0 +1,104 @@
+import pandas as pd
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix, top_k_accuracy_score
+from sklearn.preprocessing import LabelEncoder
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
+
+
+df = pd.read_csv('Motor_Vehicle_Collisions_-_Crashes.csv', low_memory=False)
+df.head()
+
+df.columns = df.columns.str.strip()
+
+df['CRASH DATETIME'] = pd.to_datetime(df['CRASH DATE'] + ' ' + df['CRASH TIME'], errors='coerce')
+df['hour'] = df['CRASH DATETIME'].dt.hour
+df['day_of_week'] = df['CRASH DATETIME'].dt.dayofweek
+df['month'] = df['CRASH DATETIME'].dt.month
+
+
+df['hour'] = pd.to_datetime(df['CRASH TIME'], errors='coerce').dt.hour
+
+
+df = df.dropna(subset=['CRASH TIME'])
+df['CRASH TIME'] = pd.to_datetime(df['CRASH TIME'], format='%H:%M', errors='coerce')
+df['CRASH DATE'] = pd.to_datetime(df['CRASH DATE'], format='%m/%d/%Y')
+df['HOUR'] = df['CRASH TIME'].dt.hour
+
+
+def get_time_of_day(hour):
+    if 5 <= hour < 12:
+        return 'Morning'
+    elif 12 <= hour < 17:
+        return 'Afternoon'
+    elif 17 <= hour < 21:
+        return 'Evening'
+    else:
+        return 'Night'
+
+df['CRASH TIME'] = pd.to_datetime(df['CRASH TIME'], errors='coerce')
+df['HOUR'] = df['CRASH TIME'].dt.hour
+df['TIME_OF_DAY'] = df['HOUR'].apply(get_time_of_day)
+
+
+df['DEADLY'] = df['NUMBER OF PERSONS KILLED'].fillna(0).apply(lambda x: 1 if x >= 1 else 0)
+
+
+y = df['DEADLY']
+
+
+for col in X.columns:
+    X[col] = LabelEncoder().fit_transform(X[col])
+
+
+features = ['BOROUGH', 'VEHICLE TYPE CODE 1', 'CONTRIBUTING FACTOR VEHICLE 1', 'TIME_OF_DAY']
+y = df.loc[X.index, 'DEADLY']
+
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, stratify=y, random_state=42)
+
+model = RandomForestClassifier(n_estimators=100, random_state=42)
+model.fit(X_train, y_train)
+
+y_pred = model.predict(X_test)
+
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+X = df[features].dropna()
+
+
+
+fatal_by_time = df[df['DEADLY'] == 1]['TIME_OF_DAY'].value_counts()
+fatal_by_time.plot(kind='bar', color='crimson')
+plt.title('Number of Fatal Collisions by Time of Day')
+plt.xlabel('Time of Day')
+plt.ylabel('Number of Fatal Crashes')
+plt.xticks(rotation=0)
+
+for i, v in enumerate(fatal_by_time):
+    plt.text(i, v + 0.5, str(v), ha='center')
+
+plt.show()
+
+
+y_pred = model.predict(X_test)
+
+cm = confusion_matrix(y_test, y_pred, labels=model.classes_)
+disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=model.classes_)
+disp.plot(xticks_rotation=45, cmap='Reds')
+plt.title("Confusion Matrix Prediction (Time of day)")
+plt.show()
+
+print(df['DEADLY'].value_counts())
+
+
+wrong_predictions = X_test[y_test != y_pred]
+wrong_samples = df.loc[wrong_predictions.index]
+wrong_samples.head(5)
+
+
+
